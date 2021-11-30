@@ -15,7 +15,8 @@
 enum conf_type
 {
     MASTER,
-    SLAVE
+    SLAVE,
+    UNKNOWN
 };
 
 struct l_in_addr

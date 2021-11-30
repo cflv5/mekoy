@@ -28,10 +28,17 @@ struct l_node
     struct sockaddr_in addr;
 };
 
+enum l_status
+{
+    READY,
+    CONNECTED,
+    NOT_CONNEDTED
+};
 
 struct lucretia
 {
     node_id id_by_master;
+    enum l_status status;
 
     enum conf_type type;
 

@@ -32,7 +32,8 @@ enum l_status
 {
     READY,
     CONNECTED,
-    NOT_CONNEDTED
+    NOT_CONNEDTED,
+    DISCONNECTED
 };
 
 struct lucretia

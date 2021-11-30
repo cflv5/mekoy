@@ -19,19 +19,28 @@ enum conf_type
     UNKNOWN
 };
 
-struct l_in_addr
+typedef u_int32_t node_id;
+
+struct l_node
 {
-    int16_t PORT;
-    in_addr_t addr;
+    node_id id;
+    int fd;
+    struct sockaddr_in addr;
 };
+
 
 struct lucretia
 {
+    node_id id_by_master;
+
     enum conf_type type;
 
-    struct l_in_addr in_addr;
+    struct sockaddr_in addr;
 
     struct map *properties;
+
+    struct l_node* master;
+    struct l_node** slaves;
 };
 
 struct lucretia *new_lucretia(struct map *props);

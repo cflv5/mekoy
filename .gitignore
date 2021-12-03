@@ -2,3 +2,7 @@
 *.o
 *.ko
 *.obj
+
+# binary files
+*.out
+*/bin/*

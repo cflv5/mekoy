@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-W -Wall
-SOURCES=$(wildcard *.c)
+CFLAGS=-W -Wall -O2
 
-all:
-	$(CC) $(CFLAGS) $(SOURCES)
+all: map.c map.h
+	$(CC) $(CFLAGS) -c map.c
+	mv map.o ../objects

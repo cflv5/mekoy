@@ -9,6 +9,8 @@
 #include "include/util.h"
 #include "include/lcp.h"
 
+#include "include/mappings.h"
+
 #include <uuid/uuid.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -25,6 +27,7 @@ static void
 create_req(struct lcp_req *req, u_char ver, const char *id,
            const char *msgid, u_int16_t opcode, const char *header, const char *body);
 static int send_req(int sockfd, struct lcp_req *req);
+static int extract_port(const char *message);
 
 struct lucretia *new_lucretia(struct map *props)
 {
@@ -34,6 +37,7 @@ struct lucretia *new_lucretia(struct map *props)
     char *max_concurrent_connstr = NULL;
 
     int max_slave_amount;
+    int max_connection;
 
     if (props == NULL)
     {
@@ -62,8 +66,8 @@ struct lucretia *new_lucretia(struct map *props)
     // Setting configuration type
     lucretia->type = set_conf_type(get_conf_type(typestr));
 
-    max_slave_amount = get_max_slave_amount(max_slave_amountstr);
-    max_concurrent_connstr = get_max_slave_amount(max_concurrent_connstr);
+    max_slave_amount = lucretia->max_slave = get_max_slave_amount(max_slave_amountstr);
+    max_connection = lucretia->max_connection = get_max_slave_amount(max_concurrent_connstr);
 
     if (lucretia->type == MASTER)
     {
@@ -257,7 +261,7 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     const char *OK = "OK";
     const char *FAILED = "FAILED";
 
-    if(server->type != MASTER)
+    if (server->type != MASTER)
     {
         return LUCRETIA_ERROR_NON_SLAVE_OPERATION;
     }
@@ -272,7 +276,7 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     }
 
     strncpy(msgid, original_req->msgid, strlen(original_req->msgid));
-    
+
     // TODO: check slave array then send OK response
     create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, OK);
     nsend = send_req(sockfd, &req);
@@ -304,6 +308,7 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES;
     }
 
+    bzero((char *)&slave->addr, sizeof(slave->addr));
     slave->addr.sin_port = (in_port_t)x_port;
     slave->addr.sin_family = AF_INET;
     slave->addr.sin_addr = req_addr.sin_addr;
@@ -359,7 +364,72 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
 
 int l_run(struct lucretia *server)
 {
-    
+    struct sockaddr_in *serv_addr = &server->addr;
+    struct sockaddr_in client_addr;
+
+    int client_addr_size;
+    int sockfd;
+    int sock_req;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1)
+    {
+        perror("ERROR>> socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
+        return LUCRETIA_ERROR_SOCKET_CREATION;
+    }
+
+    if (listen(sockfd, server->max_connection))
+    {
+        perror("ERROR>> Could not listen port: ");
+        exit(EXIT_FAILURE);
+    }
+
+    client_addr_size = sizeof(client_addr);
+    while ((sock_req = accept(sockfd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_size)))
+    {
+        if (sock_req < 0)
+        {
+            perror("ERROR>> can not accept");
+            continue;
+        }
+
+        struct lcp_req *req = NULL;
+        int n;
+        char buff[BUFF_LEN];
+        memset((void*)buff, 0, BUFF_LEN);
+        int msize;
+        int mapping_result;
+
+        if (fork() == 0)
+        {
+            n = recv(sock_req, buff, BUFF_LEN, 0);
+            if (n > 0)
+            {
+                req = deserialize_lcp_req(buff, BUFF_LEN, &msize);
+                //TODO: add filter for id verification
+                mapper(server, req, sock_req, client_addr);
+                exit(EXIT_SUCCESS);
+            }
+
+            if (n < 0)
+            {
+                shutdown(sock_req, SHUT_RDWR);
+                exit(EXIT_FAILURE);
+            }
+            else if (n == 0)
+            {
+                shutdown(sock_req, SHUT_RDWR);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        close(sock_req);
+    }
 }
 
 static int extract_port(const char *message)
@@ -443,6 +513,10 @@ static u_int16_t get_port(char *portstr)
 
 static int get_max_slave_amount(char *max_slavestr)
 {
+    if (max_slavestr == NULL)
+    {
+        return 5;
+    }
     int amount = atoi(max_slavestr);
 
     if (amount <= 0)

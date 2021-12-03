@@ -2,6 +2,7 @@
 #define __LUCRETIA_H_
 
 #include "map.h"
+#include "lcp.h"
 
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -16,7 +17,8 @@
 #define LUCRETIA_ERROR_CONNECTION_SHUTDOWN -8
 #define LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES -9
 #define LUCRETIA_ERROR_HANDSHAKE_MASTER_REJECTS -10
-#define LUCRETIA_ERROR_NON_SLAVE_OPERATION -10
+#define LUCRETIA_ERROR_NON_SLAVE_OPERATION -11
+#define LUCRETIA_ERROR_REQUEST_DESERIALIZATION -12
 
 /*
  * Configuration types of a Lucretia server.
@@ -30,7 +32,7 @@ enum conf_type
 
 struct l_node
 {
-    char* id;
+    char *id;
     int fd;
     struct sockaddr_in addr;
 };
@@ -54,6 +56,9 @@ struct lucretia
 
     struct map *properties;
 
+    u_int16_t max_connection;
+    u_int16_t max_slave;
+
     struct l_node *master;
     struct l_node **slaves;
 };
@@ -61,5 +66,6 @@ struct lucretia
 struct lucretia *new_lucretia(struct map *props);
 int lcp_handshake(struct lucretia *server, const char *address, in_port_t port);
 int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in req_addr, struct lcp_req *original_req);
+int l_run(struct lucretia *server);
 
 #endif // !__LUCRETIA_H_

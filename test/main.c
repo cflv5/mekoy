@@ -1,4 +1,5 @@
 #include "include/lcp.test.h"
+#include "include/lucretia.test.h"
 
 #include <stdio.h>
 
@@ -17,6 +18,9 @@ int main(int argc, char const *argv[])
     total_test_performed++;
 
     run_test(deserialize_lcp_req__given_lcp_req, &total_test_success, &total_test_success);
+    total_test_performed++;
+
+    run_test(create_new_lucretia__given_propety_map, &total_test_success, &total_test_success);
     total_test_performed++;
 
     fprintf(stdout, "\nTotal tests: %d Success: %d Fail: %d\n",

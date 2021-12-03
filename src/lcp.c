@@ -41,11 +41,12 @@ int serialize_lcp_req(struct lcp_req *req, char *buffer, int len)
     return pos;
 }
 
-int deserialize_lcp_req(struct lcp_req *req, const char *message, int msize)
+struct lcp_req *deserialize_lcp_req(const char *message, int msize, int *size)
 {
     int pos = 1;
     int npos = 0;
 
+    struct lcp_req *req = (struct lcp_req *)malloc(sizeof(struct lcp_req));
     if (req == NULL)
     {
         return LCP_ERROR_NULL_POINTER;
@@ -66,8 +67,11 @@ int deserialize_lcp_req(struct lcp_req *req, const char *message, int msize)
     pos += npos + 1;
 
     req->body = d_cpy(&message[pos], &npos);
+    pos += npos + 1;
 
-    return 0;
+    *size = pos;
+
+    return req;
 }
 
 int clear_lcp_req(struct lcp_req *req)

@@ -249,7 +249,6 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
 
     char buffer[BUFF_LEN];
     char msgid[UUID_STR_LEN];
-    strncpy(msgid, original_req->msgid, strlen(original_req->msgid));
 
     char sid[UUID_STR_LEN];
 
@@ -257,6 +256,11 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     struct lcp_req *resp;
     const char *OK = "OK";
     const char *FAILED = "FAILED";
+
+    if(server->type != MASTER)
+    {
+        return LUCRETIA_ERROR_NON_SLAVE_OPERATION;
+    }
 
     struct l_node *slave = (struct l_node *)malloc(sizeof(struct l_node));
     if (slave == NULL)
@@ -267,6 +271,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_MEM_ALLOC;
     }
 
+    strncpy(msgid, original_req->msgid, strlen(original_req->msgid));
+    
     // TODO: check slave array then send OK response
     create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, OK);
     nsend = send_req(sockfd, &req);
@@ -349,6 +355,11 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     shutdown(sockfd, SHUT_RDWR);
 
     return 0;
+}
+
+int l_run(struct lucretia *server)
+{
+    
 }
 
 static int extract_port(const char *message)

@@ -19,6 +19,7 @@ struct lcp_req
 
 int serialize_lcp_req(struct lcp_req* req, char* buffer, int len);
 int deserialize_lcp_req(struct lcp_req* req, const char* message, int msize);
+int clear_lcp_req(struct lcp_req *req);
 int destroy_lcp_req(struct lcp_req *req);
 int to_str_lcp_req(struct lcp_req *req, char *buff, int len);
 

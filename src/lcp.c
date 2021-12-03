@@ -41,12 +41,12 @@ int serialize_lcp_req(struct lcp_req *req, char *buffer, int len)
     return pos;
 }
 
-int deserialize_lcp_req(struct lcp_req* req, const char *message, int msize)
+int deserialize_lcp_req(struct lcp_req *req, const char *message, int msize)
 {
     int pos = 1;
     int npos = 0;
 
-    if(req == NULL)
+    if (req == NULL)
     {
         return LCP_ERROR_NULL_POINTER;
     }
@@ -70,7 +70,7 @@ int deserialize_lcp_req(struct lcp_req* req, const char *message, int msize)
     return 0;
 }
 
-int destroy_lcp_req(struct lcp_req *req)
+int clear_lcp_req(struct lcp_req *req)
 {
     if (req == NULL)
     {
@@ -81,6 +81,18 @@ int destroy_lcp_req(struct lcp_req *req)
     free_str(req->msgid);
     free_str(req->header);
     free_str(req->body);
+
+    return 0;
+}
+
+int destroy_lcp_req(struct lcp_req *req)
+{
+    if (req == NULL)
+    {
+        return LCP_ERROR_NULL_POINTER;
+    }
+
+    clear_lcp_req(req);
 
     free(req);
 

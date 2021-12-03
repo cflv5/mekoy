@@ -59,5 +59,6 @@ struct lucretia
 
 struct lucretia *new_lucretia(struct map *props);
 int lcp_handshake(struct lucretia *server, const char *address, in_port_t port);
+int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in req_addr, struct lcp_req *original_req);
 
 #endif // !__LUCRETIA_H_

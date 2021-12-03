@@ -238,6 +238,142 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     return 0;
 }
 
+int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in req_addr, struct lcp_req *original_req)
+{
+    int nsend;
+    int nread;
+    int resp_size;
+
+    int x_port;
+    in_port_t slave_port;
+
+    char buffer[BUFF_LEN];
+    char msgid[UUID_STR_LEN];
+    strncpy(msgid, original_req->msgid, strlen(original_req->msgid));
+
+    char sid[UUID_STR_LEN];
+
+    struct lcp_req req;
+    struct lcp_req *resp;
+    const char *OK = "OK";
+    const char *FAILED = "FAILED";
+
+    struct l_node *slave = (struct l_node *)malloc(sizeof(struct l_node));
+    if (slave == NULL)
+    {
+        create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
+        send_req(sockfd, &req);
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_MEM_ALLOC;
+    }
+
+    // TODO: check slave array then send OK response
+    create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, OK);
+    nsend = send_req(sockfd, &req);
+    if (nsend < 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return nsend;
+    }
+
+    // waiting slaves server port response
+    nread = recv(sockfd, (void *)buffer, BUFF_LEN, 0);
+    if (nread < 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_CONNECTION_SHUTDOWN;
+    }
+
+    resp = deserialize_lcp_req(buffer, BUFF_LEN, resp_size);
+    if (resp->opcode != L_OP_HANDSHAKE || strncmp(msgid, resp->msgid, strlen(msgid)) != 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES;
+    }
+
+    x_port = extract_port(resp->body);
+    if (x_port < 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES;
+    }
+
+    slave->addr.sin_port = (in_port_t)x_port;
+    slave->addr.sin_family = AF_INET;
+    slave->addr.sin_addr = req_addr.sin_addr;
+
+    get_uuid(sid, UUID_STR_LEN);
+    slave->id = (char *)malloc(UUID_STR_LEN * sizeof(char));
+    strncpy(slave, sid, UUID_STR_LEN);
+
+    create_req(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, sid);
+    nsend = send_req(sockfd, &req);
+    if (nsend < 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return nsend;
+    }
+
+    // waiting for slave's ack.
+    nread = recv(sockfd, (void *)buffer, BUFF_LEN, 0);
+    if (nread < 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_CONNECTION_SHUTDOWN;
+    }
+
+    destroy_lcp_req(resp);
+    resp = deserialize_lcp_req(buffer, BUFF_LEN, resp_size);
+    if (resp->opcode != L_OP_HANDSHAKE || strncmp(msgid, resp->msgid, strlen(msgid)) != 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES;
+    }
+
+    if (strncmp(sid, resp->body, strlen(sid)) != 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        free(server->id_by_master);
+        return LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES;
+    }
+
+    create_req(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, OK);
+    nsend = send_req(sockfd, &req);
+    if (nsend < 0)
+    {
+        shutdown(sockfd, SHUT_RDWR);
+        return nsend;
+    }
+
+    server->slaves[0] = slave;
+    shutdown(sockfd, SHUT_RDWR);
+
+    return 0;
+}
+
+static int extract_port(const char *message)
+{
+    const char *PORT_STR = "PORT=";
+    char *p = strstr(message, PORT_STR);
+    char buff[7];
+    int i = 0;
+
+    if (p == NULL)
+    {
+        return LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES;
+    }
+
+    p += 5;
+    while (p && i < 7 && p[i] != '\0' && p[i] != "\n")
+    {
+        buff[i] = p[i];
+        i++;
+    }
+    buff[++i] = 0;
+
+    return atoi(buff);
+}
+
 static void
 create_req(struct lcp_req *req, u_char ver, const char *id,
            const char *msgid, u_int16_t opcode, const char *header, const char *body)

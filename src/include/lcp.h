@@ -6,6 +6,9 @@
 #define LCP_ERROR_NULL_POINTER -1
 
 #define L_OP_HANDSHAKE 1
+#define L_OP_UNSUPPORTED_OPERATION 99
+
+#define LCP_BUFF_SIZE 1024
 
 struct lcp_req
 {

@@ -8,6 +8,14 @@
 
 #define LUCRETIA_ERROR_PROPS_NULL -1
 #define LUCRETIA_ERROR_MEM_ALLOC -2
+#define LUCRETIA_ERROR_NON_MASTER_OPERATION -3
+#define LUCRETIA_ERROR_SOCKET_CREATION -4
+#define LUCRETIA_ERROR_CONNECTION -5
+#define LUCRETIA_ERROR_REQUEST_SERIALIZATION -6
+#define LUCRETIA_ERROR_SEND_OPERATION -7
+#define LUCRETIA_ERROR_CONNECTION_SHUTDOWN -8
+#define LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES -9
+#define LUCRETIA_ERROR_HANDSHAKE_MASTER_REJECTS -10
 
 /*
  * Configuration types of a Lucretia server.
@@ -52,5 +60,6 @@ struct lucretia
 };
 
 struct lucretia *new_lucretia(struct map *props);
+int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
 
 #endif // !__LUCRETIA_H_

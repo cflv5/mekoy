@@ -4,13 +4,13 @@ OBJECTS=
 
 .PHONY: clean
 
-lucretia.o: mappings.o lcp.o util.o include/lucretia.h lucretia.c
+lucretia.o: dispatch.o lcp.o util.o include/lucretia.h lucretia.c
 	$(CC) $(CFLAGS) -c lucretia.c
 	mv lucretia.o ../lib/objects
 
-mappings.o: mappings.c include/mappings.h
-	$(CC) $(CFLAGS) -c mappings.c
-	mv mappings.o ../lib/objects
+dispatch.o: dispatch.c include/dispatch.h
+	$(CC) $(CFLAGS) -c dispatch.c
+	mv dispatch.o ../lib/objects
 
 lcp.o: lcp.c include/lcp.h
 	$(CC) $(CFLAGS) -c lcp.c

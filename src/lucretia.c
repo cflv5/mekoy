@@ -9,7 +9,7 @@
 #include "include/util.h"
 #include "include/lcp.h"
 
-#include "include/mappings.h"
+#include "include/dispatch.h"
 
 #include <uuid/uuid.h>
 #include <stdlib.h>
@@ -412,7 +412,7 @@ int l_run(struct lucretia *server)
             {
                 req = deserialize_lcp_req(buff, BUFF_LEN, &msize);
                 //TODO: add filter for id verification
-                mapper(server, req, sock_req, client_addr);
+                dispatch(server, req, sock_req, client_addr);
                 exit(EXIT_SUCCESS);
             }
 

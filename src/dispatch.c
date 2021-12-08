@@ -1,4 +1,4 @@
-#include "include/mappings.h"
+#include "include/dispatch.h"
 #include "include/lucretia.h"
 
 #include <unistd.h>
@@ -9,7 +9,7 @@
 
 static int inform_unsupported_operation(struct lucretia *server, struct lcp_req *oreq, int sockfd);
 
-int mapper(struct lucretia *server, struct lcp_req *req, int sockfd, struct sockaddr_in req_addr)
+int dispatch(struct lucretia *server, struct lcp_req *req, int sockfd, struct sockaddr_in req_addr)
 {
     int try;
     int return_code;

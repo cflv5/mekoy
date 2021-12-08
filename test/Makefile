@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-O2 -Wall 
-OBJECTS=../lib/objects/lcp.test.o ../lib/objects/lucretia.test.o ../lib/objects/lcp.o ../lib/objects/map.o ../lib/objects/util.o ../lib/objects/mappings.o ../lib/objects/lucretia.o
+OBJECTS=../lib/objects/lcp.test.o ../lib/objects/lucretia.test.o ../lib/objects/lcp.o ../lib/objects/map.o ../lib/objects/util.o ../lib/objects/dispatch.o ../lib/objects/lucretia.o
 OUTPUT=test
 
 .PHONY: clean test

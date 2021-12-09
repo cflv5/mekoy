@@ -40,13 +40,13 @@ int handshake__given_master_and_slave()
 
     if ((server_pid = fork()) == 0)
     {
-        int status = l_run(master);
+        l_run(master);
         exit(EXIT_SUCCESS);
     }
 
     if ((slave_pid = fork()) == 0)
     {
-        int status = l_run(slave);
+        l_run(slave);
         exit(EXIT_SUCCESS);
     }
 

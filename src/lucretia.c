@@ -385,7 +385,7 @@ int l_run(struct lucretia *server)
 
     if (bind(sockfd, (struct sockaddr *)serv_addr, sizeof(struct sockaddr_in)) < 0)
     {
-        perror("Binding error");
+        perror("ERROR>> Binding error");
         return LUCRETIA_ERROR_SOCKET_BINDING;
     }
 

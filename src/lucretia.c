@@ -238,6 +238,8 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
         return LUCRETIA_ERROR_HANDSHAKE_MASTER_REJECTS;
     }
 
+    server->status = CONNECTED;
+    
     shutdown(sockfd, SHUT_RDWR);
 
     return 0;

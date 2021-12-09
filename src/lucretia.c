@@ -108,7 +108,7 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
 
     struct lcp_req req;
     struct lcp_req *resp;
-    int resp_size;
+    int resp_size = 0;
 
     const char *hello = "CAN I BE YOUR SLAVE";
     const char *OK = "OK";
@@ -154,7 +154,7 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
         return LUCRETIA_ERROR_CONNECTION_SHUTDOWN;
     }
 
-    resp = deserialize_lcp_req(buffer, BUFF_LEN, resp_size);
+    resp = deserialize_lcp_req(buffer, BUFF_LEN, &resp_size);
     if (resp->opcode != L_OP_HANDSHAKE || strncmp(msgid, resp->msgid, strlen(msgid)) != 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -186,7 +186,7 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     }
 
     destroy_lcp_req(resp);
-    resp = deserialize_lcp_req(buffer, BUFF_LEN, resp_size);
+    resp = deserialize_lcp_req(buffer, BUFF_LEN, &resp_size);
     if (resp->opcode != L_OP_HANDSHAKE || strncmp(msgid, resp->msgid, strlen(msgid)) != 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -202,7 +202,8 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
 
     // setting id appointed by master
     server->id_by_master = (char *)malloc(UUID_STR_LEN * sizeof(char));
-    strncpy(server->id_by_master, resp->body, UUID_STR_LEN);
+    memset((void*)server->id_by_master, 0, UUID_STR_LEN);
+    strncpy(server->id_by_master, resp->body, UUID_STR_LEN - 1);
 
     // returning id to master to ack.
     create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, server->id_by_master);
@@ -222,7 +223,7 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     }
 
     destroy_lcp_req(resp);
-    resp = deserialize_lcp_req(buffer, BUFF_LEN, resp_size);
+    resp = deserialize_lcp_req(buffer, BUFF_LEN, &resp_size);
     if (resp->opcode != L_OP_HANDSHAKE || strncmp(msgid, resp->msgid, strlen(msgid)) != 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -246,7 +247,7 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
 {
     int nsend;
     int nread;
-    int resp_size;
+    int resp_size = 0;
 
     int x_port;
     in_port_t slave_port;
@@ -275,7 +276,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_MEM_ALLOC;
     }
 
-    strncpy(msgid, original_req->msgid, strlen(original_req->msgid));
+    memset((void*)msgid, 0, UUID_STR_LEN);
+    strncpy(msgid, original_req->msgid, UUID_STR_LEN - 1);
 
     // TODO: check slave array then send OK response
     create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, OK);
@@ -294,7 +296,7 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_CONNECTION_SHUTDOWN;
     }
 
-    resp = deserialize_lcp_req(buffer, BUFF_LEN, resp_size);
+    resp = deserialize_lcp_req(buffer, BUFF_LEN, &resp_size);
     if (resp->opcode != L_OP_HANDSHAKE || strncmp(msgid, resp->msgid, strlen(msgid)) != 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -309,13 +311,14 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     }
 
     bzero((char *)&slave->addr, sizeof(slave->addr));
-    slave->addr.sin_port = (in_port_t)x_port;
+    slave->addr.sin_port = (in_port_t)ntoh(x_port);
     slave->addr.sin_family = AF_INET;
     slave->addr.sin_addr = req_addr.sin_addr;
 
     get_uuid(sid, UUID_STR_LEN);
     slave->id = (char *)malloc(UUID_STR_LEN * sizeof(char));
-    strncpy(slave, sid, UUID_STR_LEN);
+    memset((void*)slave->id, 0, UUID_STR_LEN);
+    strncpy(slave, sid, UUID_STR_LEN - 1);
 
     create_req(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, sid);
     nsend = send_req(sockfd, &req);
@@ -334,7 +337,7 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     }
 
     destroy_lcp_req(resp);
-    resp = deserialize_lcp_req(buffer, BUFF_LEN, resp_size);
+    resp = deserialize_lcp_req(buffer, BUFF_LEN, &resp_size);
     if (resp->opcode != L_OP_HANDSHAKE || strncmp(msgid, resp->msgid, strlen(msgid)) != 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -374,13 +377,13 @@ int l_run(struct lucretia *server)
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1)
     {
-        perror("ERROR>> socket creation failed");
-        exit(EXIT_FAILURE);
+        return LUCRETIA_ERROR_SOCKET_CREATION;
     }
 
-    if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    if (bind(sockfd, (struct sockaddr *)serv_addr, sizeof(struct sockaddr_in)) < 0)
     {
-        return LUCRETIA_ERROR_SOCKET_CREATION;
+        perror("Binding error");
+        return LUCRETIA_ERROR_SOCKET_BINDING;
     }
 
     if (listen(sockfd, server->max_connection))

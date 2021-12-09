@@ -6,3 +6,6 @@
 # binary files
 *.out
 */bin/*
+
+#vscode
+.vscode

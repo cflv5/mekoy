@@ -36,7 +36,7 @@ static void run_test(int (*f)(void), int *success, int *fail)
     int slr_result = f();
 
     if (slr_result)
-        *success++;
+        (*success)++;
     else
-        *fail++;
+        (*fail)++;
 }

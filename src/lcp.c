@@ -61,7 +61,7 @@ struct lcp_req *deserialize_lcp_req(const char *message, int msize, int *size)
     req->msgid = d_cpy(&message[pos], &npos);
     pos += npos + 1;
 
-    opcode = &message[pos];
+    opcode = (u_int16_t *)&message[pos];
     req->opcode = ntohs(*opcode);
     pos += 2;
 
@@ -140,7 +140,9 @@ static char *d_cpy(const char *src, int *len)
     dest = (char *)malloc((*len + 1) * sizeof(char));
     if (dest != NULL)
     {
-        strncpy(dest, src, *len);
+        memset((void *)dest, 0, *len + 1);
+        strncpy(dest, src, *len); 
+        // TODO: use memset instead
     }
 
     return dest;

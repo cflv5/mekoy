@@ -16,6 +16,7 @@
 #include <limits.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define BUFF_LEN 1024
 
@@ -202,7 +203,7 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
 
     // setting id appointed by master
     server->id_by_master = (char *)malloc(UUID_STR_LEN * sizeof(char));
-    memset((void*)server->id_by_master, 0, UUID_STR_LEN);
+    memset((void *)server->id_by_master, 0, UUID_STR_LEN);
     strncpy(server->id_by_master, resp->body, UUID_STR_LEN - 1);
 
     // returning id to master to ack.
@@ -239,7 +240,7 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     }
 
     server->status = CONNECTED;
-    
+
     shutdown(sockfd, SHUT_RDWR);
 
     return 0;
@@ -278,7 +279,7 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_MEM_ALLOC;
     }
 
-    memset((void*)msgid, 0, UUID_STR_LEN);
+    memset((void *)msgid, 0, UUID_STR_LEN);
     strncpy(msgid, original_req->msgid, UUID_STR_LEN - 1);
 
     // TODO: check slave array then send OK response
@@ -313,14 +314,14 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     }
 
     bzero((char *)&slave->addr, sizeof(slave->addr));
-    slave->addr.sin_port = (in_port_t)ntoh(x_port);
+    slave->addr.sin_port = (in_port_t)ntohs(x_port);
     slave->addr.sin_family = AF_INET;
     slave->addr.sin_addr = req_addr.sin_addr;
 
     get_uuid(sid, UUID_STR_LEN);
     slave->id = (char *)malloc(UUID_STR_LEN * sizeof(char));
-    memset((void*)slave->id, 0, UUID_STR_LEN);
-    strncpy(slave, sid, UUID_STR_LEN - 1);
+    memset((void *)slave->id, 0, UUID_STR_LEN);
+    strncpy(slave->id, sid, UUID_STR_LEN);
 
     create_req(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, sid);
     nsend = send_req(sockfd, &req);
@@ -406,7 +407,7 @@ int l_run(struct lucretia *server)
         struct lcp_req *req = NULL;
         int n;
         char buff[BUFF_LEN];
-        memset((void*)buff, 0, BUFF_LEN);
+        memset((void *)buff, 0, BUFF_LEN);
         int msize;
         int mapping_result;
 
@@ -416,7 +417,7 @@ int l_run(struct lucretia *server)
             if (n > 0)
             {
                 req = deserialize_lcp_req(buff, BUFF_LEN, &msize);
-                //TODO: add filter for id verification
+                // TODO: add filter for id verification
                 dispatch(server, req, sock_req, client_addr);
                 exit(EXIT_SUCCESS);
             }
@@ -435,6 +436,8 @@ int l_run(struct lucretia *server)
 
         close(sock_req);
     }
+
+    return 0;
 }
 
 int destroy_lucretia(struct lucretia *server)
@@ -456,7 +459,7 @@ static int extract_port(const char *message)
     }
 
     p += 5;
-    while (p && i < 7 && p[i] != '\0' && p[i] != "\n")
+    while (p && i < 7 && p[i] != '\0' && p[i] != '\n')
     {
         buff[i] = p[i];
         i++;

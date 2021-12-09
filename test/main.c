@@ -23,6 +23,9 @@ int main(int argc, char const *argv[])
     run_test(create_new_lucretia__given_propety_map, &total_test_success, &total_test_success);
     total_test_performed++;
 
+    run_test(handshake__given_master_and_slave, &total_test_success, &total_test_success);
+    total_test_performed++;
+
     fprintf(stdout, "\nTotal tests: %d Success: %d Fail: %d\n",
             total_test_performed, total_test_success, total_test_failed);
     return 0;

@@ -1,5 +1,11 @@
 #include "include/lucretia.test.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <signal.h>
+
 static struct map *create_map(const char *conf, const char *port);
 
 int create_new_lucretia__given_propety_map()
@@ -20,13 +26,56 @@ int create_new_lucretia__given_propety_map()
     return 1;
 }
 
+int handshake__given_master_and_slave()
+{
+    int returnval = 0;
+    int server_pid;
+    int slave_pid;
+
+    struct map *master_propeties = create_map("MASTER", "5354");
+    struct map *slave_propeties = create_map("SLAVE", "5355");
+
+    struct lucretia *master = new_lucretia(master_propeties);
+    struct lucretia *slave = new_lucretia(slave_propeties);
+
+    if ((server_pid = fork()) == 0)
+    {
+        int status = l_run(master);
+        exit(EXIT_SUCCESS);
+    }
+
+    if ((slave_pid = fork()) == 0)
+    {
+        int status = l_run(slave);
+        exit(EXIT_SUCCESS);
+    }
+
+    sleep(5);
+
+    int r = lcp_handshake(slave, "127.0.0.1", 5354);
+    if (r < 0)
+    {
+        returnval = 1;
+    }
+
+    if (slave->status != CONNECTED)
+    {
+        returnval = 1;
+    }
+
+    kill(server_pid, SIGKILL);
+    kill(slave_pid, SIGKILL);
+
+    return returnval;
+}
+
 static struct map *create_map(const char *conf, const char *port)
 {
     struct map *propeties = mapNew();
 
-    mapAdd("CONF_TYPE", conf, propeties);
-    mapAdd("PORT", port, propeties);
-    mapAdd("MAX_SLAVE", "10", propeties);
+    mapAdd("CONF_TYPE", (void *)conf, propeties);
+    mapAdd("PORT", (void *)port, propeties);
+    mapAdd("MAX_SLAVE", (void *)"10", propeties);
 
     return propeties;
 }

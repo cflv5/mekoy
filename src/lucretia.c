@@ -435,6 +435,12 @@ int l_run(struct lucretia *server)
     }
 }
 
+int destroy_lucretia(struct lucretia *server)
+{
+    // TODO: implement destruction of the server
+    return 0;
+}
+
 static int extract_port(const char *message)
 {
     const char *PORT_STR = "PORT=";

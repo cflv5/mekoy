@@ -19,6 +19,7 @@
 #define LUCRETIA_ERROR_HANDSHAKE_MASTER_REJECTS -10
 #define LUCRETIA_ERROR_NON_SLAVE_OPERATION -11
 #define LUCRETIA_ERROR_REQUEST_DESERIALIZATION -12
+#define LUCRETIA_ERROR_SOCKET_BINDING -13
 
 /*
  * Configuration types of a Lucretia server.
@@ -67,5 +68,6 @@ struct lucretia *new_lucretia(struct map *props);
 int lcp_handshake(struct lucretia *server, const char *address, in_port_t port);
 int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in req_addr, struct lcp_req *original_req);
 int l_run(struct lucretia *server);
+int destroy_lucretia(struct lucretia *server);
 
 #endif // !__LUCRETIA_H_

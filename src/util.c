@@ -1,4 +1,5 @@
 #include "include/util.h"
+#include "include/lucretia.h"
 
 #include <string.h>
 #include <uuid/uuid.h>
@@ -33,6 +34,47 @@ int get_uuid(char *buff, int len)
     }
 
     uuid_unparse_lower(binuuid, buff);
+
+    return 0;
+}
+
+struct l_node* get_l_node_by_id(struct l_node_list *list, const char *id)
+{
+    int size;
+    struct l_node *node = NULL;
+
+    if(list == NULL)
+    {
+        return NULL;
+    }
+
+    size = list->size;
+
+    for (size_t i = 0; i < size; i++)
+    {
+        if(strncmp(id, list->list[i]->id, strlen(id)) == 0)
+        {
+            node = list->list[i];
+            break;
+        }
+    }
+    
+    return node;
+}
+
+int insert_l_node(struct l_node_list *list, struct l_node *node)
+{
+    if(list == NULL)
+    {
+        return UTIL_ERROR_NULL_POINTER;
+    }
+
+    if((list->size + 1) == list->len)
+    {
+        return UTIL_ERROR_ARRAY_OVERFLOW;
+    }
+
+    list->list[list->len++] = node;
 
     return 0;
 }

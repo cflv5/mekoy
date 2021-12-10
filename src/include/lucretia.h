@@ -20,6 +20,8 @@
 #define LUCRETIA_ERROR_NON_SLAVE_OPERATION -11
 #define LUCRETIA_ERROR_REQUEST_DESERIALIZATION -12
 #define LUCRETIA_ERROR_SOCKET_BINDING -13
+#define LUCRETIA_ERROR_SETTING_SLAVE -14
+#define LUCRETIA_ERROR_ALREADY_CONNECTED -15
 
 /*
  * Configuration types of a Lucretia server.
@@ -36,6 +38,14 @@ struct l_node
     char *id;
     int fd;
     struct sockaddr_in addr;
+};
+
+struct l_node_list{
+    struct l_node **list;
+    // current size
+    int size; 
+    //max size
+    int len;
 };
 
 enum l_status
@@ -61,7 +71,7 @@ struct lucretia
     u_int16_t max_slave;
 
     struct l_node *master;
-    struct l_node **slaves;
+    struct l_node_list *slaves;
 };
 
 struct lucretia *new_lucretia(struct map *props);

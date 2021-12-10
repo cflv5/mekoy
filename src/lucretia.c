@@ -23,7 +23,7 @@
 static enum conf_type set_conf_type(enum conf_type type);
 static u_int16_t get_port(char *portstr);
 static int get_max_slave_amount(char *max_slavestr);
-static struct l_node **set_slave_arr(int max_amount);
+static struct l_node_list **set_slave_list(int max_amount);
 static void
 create_req(struct lcp_req *req, u_char ver, const char *id,
            const char *msgid, u_int16_t opcode, const char *header, const char *body);
@@ -73,7 +73,7 @@ struct lucretia *new_lucretia(struct map *props)
     if (lucretia->type == MASTER)
     {
         lucretia->master = NULL;
-        lucretia->slaves = set_slave_arr(max_slave_amount);
+        lucretia->slaves = set_slave_list(max_slave_amount);
         if (lucretia->slaves == NULL)
         {
             return LUCRETIA_ERROR_MEM_ALLOC;
@@ -105,8 +105,6 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     char buffer[BUFF_LEN];
     int buff_len;
 
-    struct sockaddr_in master_addr;
-
     struct lcp_req req;
     struct lcp_req *resp;
     int resp_size = 0;
@@ -119,6 +117,17 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
         return LUCRETIA_ERROR_NON_MASTER_OPERATION;
     }
 
+    if (server->master != NULL || server->status == CONNECTED)
+    {
+        return LUCRETIA_ERROR_ALREADY_CONNECTED;
+    }
+
+    struct l_node *master = (struct l_node *)malloc(sizeof(struct l_node));
+    if (master == NULL)
+    {
+        return LUCRETIA_ERROR_MEM_ALLOC;
+    }
+
     // creating socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -126,11 +135,12 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
         return LUCRETIA_ERROR_SOCKET_CREATION;
     }
 
-    master_addr.sin_family = AF_INET;
-    master_addr.sin_addr.s_addr = inet_addr(address);
-    master_addr.sin_port = htons(port);
+    bzero((char *)&master->addr, sizeof(master->addr));
+    master->addr.sin_family = AF_INET;
+    master->addr.sin_addr.s_addr = inet_addr(address);
+    master->addr.sin_port = htons(port);
 
-    if (connect(sockfd, (const struct sockaddr *)&master_addr, sizeof(master_addr)) < 0)
+    if (connect(sockfd, (const struct sockaddr *)&master->addr, sizeof(master->addr)) < 0)
     {
         close(sockfd);
         return LUCRETIA_ERROR_CONNECTION;
@@ -240,6 +250,7 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     }
 
     server->status = CONNECTED;
+    server->master = master;
 
     shutdown(sockfd, SHUT_RDWR);
 
@@ -282,7 +293,20 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     memset((void *)msgid, 0, UUID_STR_LEN);
     strncpy(msgid, original_req->msgid, UUID_STR_LEN - 1);
 
-    // TODO: check slave array then send OK response
+    // checking slave array status
+    if (check_if_slave_array_avaliable(server->slaves))
+    {
+        create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
+        nsend = send_req(sockfd, &req);
+        if (nsend < 0)
+        {
+            shutdown(sockfd, SHUT_RDWR);
+            return nsend;
+        }
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_SETTING_SLAVE;
+    }
+
     create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, OK);
     nsend = send_req(sockfd, &req);
     if (nsend < 0)
@@ -354,6 +378,19 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_HANDSHAKE_MISMACHED_RESPONSE_VALUES;
     }
 
+    if (insert_l_node(server->slaves, slave))
+    {
+        create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
+        nsend = send_req(sockfd, &req);
+        if (nsend < 0)
+        {
+            shutdown(sockfd, SHUT_RDWR);
+            return nsend;
+        }
+        shutdown(sockfd, SHUT_RDWR);
+        return LUCRETIA_ERROR_SETTING_SLAVE;
+    }
+
     create_req(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, OK);
     nsend = send_req(sockfd, &req);
     if (nsend < 0)
@@ -362,7 +399,6 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return nsend;
     }
 
-    server->slaves[0] = slave;
     shutdown(sockfd, SHUT_RDWR);
 
     return 0;
@@ -541,19 +577,43 @@ static int get_max_slave_amount(char *max_slavestr)
     return amount;
 }
 
-static struct l_node **set_slave_arr(int max_amount)
+static struct l_node_list **set_slave_list(int max_amount)
 {
-    struct l_node **slaves = (struct l_node **)malloc(max_amount * sizeof(struct l_node *));
+    if (max_amount <= 0)
+    {
+        max_amount = 5;
+    }
+
+    struct l_node_list *slaves = (struct l_node_list *)malloc(sizeof(struct l_node_list));
     if (slaves == NULL)
     {
         return NULL;
     }
 
-    struct l_node **tmp = slaves;
+    slaves->len = max_amount;
+    slaves->size = 0;
+    
+    slaves->list = (struct l_node **)malloc(max_amount * sizeof(struct l_node *));
+    if (slaves->list == NULL)
+    {
+        return NULL;
+    }
+
+    struct l_node **tmp = slaves->list;
     for (size_t i = 0; i < max_amount; i++)
     {
         *tmp++ = NULL;
     }
 
     return slaves;
+}
+
+static int check_if_slave_array_avaliable(struct l_node_list *slaves)
+{
+    int result = 0;
+    if ((slaves->size + 1) == slaves->len)
+    {
+        result = 1;
+    }
+    return result;
 }

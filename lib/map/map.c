@@ -89,3 +89,12 @@ void mapClose(M* map)
 	free(map->items);
 	free(map);
 }
+
+int getSize(struct map* map)
+{
+	if(map == NULL)
+	{
+		return 0;
+	}
+	return map->size;
+}

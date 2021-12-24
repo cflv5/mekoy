@@ -1,5 +1,6 @@
 #include "include/lcp.test.h"
 #include "include/lucretia.test.h"
+#include "include/process_message.test.h"
 
 #include <stdio.h>
 
@@ -24,6 +25,12 @@ int main(int argc, char const *argv[])
     total_test_performed++;
 
     run_test(handshake__given_master_and_slave, &total_test_success, &total_test_success);
+    total_test_performed++;
+
+    run_test(serialize_process_message__given_process_message, &total_test_success, &total_test_success);
+    total_test_performed++;
+    
+    run_test(deserialize_process_message__given_process_message, &total_test_success, &total_test_success);
     total_test_performed++;
 
     fprintf(stdout, "\nTotal tests: %d Success: %d Fail: %d\n",

@@ -88,6 +88,13 @@ int send_process_message(struct process_message *message, struct m_process *ps)
     {
         return PROCESS_MESSAGE_ERROR_NULL_POINTER;
     }
+
+    if (ps->status != STARTED)
+    {
+        return PROCESS_MESSAGE_ERROR_SEND_TO_NOT_STARTED;
+    }
+    
+
     int pwrite = ps->pfd[1];
     
     int size = serialize_process_message(message, buff, PROCESS_HANDLER_BUFF_SIZE);
@@ -98,12 +105,24 @@ int send_process_message(struct process_message *message, struct m_process *ps)
     }
     
     fprintf(stderr, "[INFO][MEKOY][PMESSAGE] - Send message (%s) to: %s", buff, ps->name);
+    
+    if (pthread_mutex_lock(&(ps->lock)) != 0)
+    {
+        return PROCESS_MESSAGE_ERROR_MUTEX_LOCK;
+    }
+    
     ssize_t wsize = write(pwrite, buff, size);
     if (wsize < 0)
     {
         return PROCESS_MESSAGE_ERROR_WRITE_TO_PIPE;
     }
     
+    if (pthread_mutex_unlock(&(ps->lock)) != 0)
+    {
+        ps->status = STOPED;
+        //TODO: add signal to child to exit
+        return PROCESS_MESSAGE_ERROR_MUTEX_UNLOCK;
+    }
     return PROCESS_MESSAGE_OK;
 }
 

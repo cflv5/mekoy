@@ -97,6 +97,7 @@ int send_process_message(struct process_message *message, struct m_process *ps)
         return PROCESS_MESSAGE_ERROR_SERILIAZATION;
     }
     
+    fprintf(stderr, "[INFO][MEKOY][PMESSAGE] - Send message (%s) to: %s", buff, ps->name);
     ssize_t wsize = write(pwrite, buff, size);
     if (wsize < 0)
     {

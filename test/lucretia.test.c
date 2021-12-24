@@ -28,7 +28,7 @@ int create_new_lucretia__given_propety_map()
 
 int handshake__given_master_and_slave()
 {
-    int returnval = 0;
+    int returnval = 1;
     int server_pid;
     int slave_pid;
 
@@ -55,12 +55,12 @@ int handshake__given_master_and_slave()
     int r = lcp_handshake(slave, "127.0.0.1", 5354);
     if (r < 0)
     {
-        returnval = 1;
+        returnval = 0;
     }
 
     if (slave->status != CONNECTED)
     {
-        returnval = 1;
+        returnval = 0;
     }
 
     kill(server_pid, SIGKILL);

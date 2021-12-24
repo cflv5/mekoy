@@ -29,6 +29,7 @@ create_req(struct lcp_req *req, u_char ver, const char *id,
            const char *msgid, u_int16_t opcode, const char *header, const char *body);
 static int send_req(int sockfd, struct lcp_req *req);
 static int extract_port(const char *message);
+static int check_if_slave_array_avaliable(struct l_node_list *slaves);
 
 struct lucretia *new_lucretia(struct map *props)
 {

@@ -218,7 +218,6 @@ static void cv_communication_bw_processes(char *anomaly_msg, struct process_hand
 
 static int send_message_to_pfd(struct m_process *ps, char code, char *message)
 {
-    char buff[PROCESS_HANDLER_BUFF_SIZE];
     struct process_message msg;
 
     msg.code = code;

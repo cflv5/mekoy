@@ -1,8 +1,12 @@
 #ifndef __LUCRETIA_H_
 #define __LUCRETIA_H_
 
+struct mekoy;
+
 #include "map.h"
 #include "lcp.h"
+#include "mekoy.h"
+#include "conf_type.h"
 
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -22,16 +26,6 @@
 #define LUCRETIA_ERROR_SOCKET_BINDING -13
 #define LUCRETIA_ERROR_SETTING_SLAVE -14
 #define LUCRETIA_ERROR_ALREADY_CONNECTED -15
-
-/*
- * Configuration types of a Lucretia server.
- */
-enum conf_type
-{
-    MASTER,
-    SLAVE,
-    UNKNOWN
-};
 
 struct l_node
 {
@@ -72,6 +66,8 @@ struct lucretia
 
     struct l_node *master;
     struct l_node_list *slaves;
+
+    struct mekoy* ccf;
 };
 
 struct lucretia *new_lucretia(struct map *props);

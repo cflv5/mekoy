@@ -1,5 +1,6 @@
 #include "include/dispatch.h"
 #include "include/lucretia.h"
+#include "include/lcp_handler.h"
 
 #include <unistd.h>
 #include <netinet/in.h>
@@ -31,6 +32,10 @@ int dispatch(struct lucretia *server, struct lcp_req *req, int sockfd, struct so
         default:
             break;
         }
+
+        return return_code;
+    case L_OP_INFORM_MASTER:
+        return_code = handle_lcp_informed(server, sockfd, req_addr, req);
 
         return return_code;
     default:

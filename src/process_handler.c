@@ -5,6 +5,9 @@
 
 #include "include/process_handler.h"
 #include "include/process_message.h"
+#include "include/lcp.h"
+#include "include/lucretia.h"
+#include "include/util.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -120,6 +123,50 @@ int handle_road_inform_control(struct process_message *message, struct process_h
 
 int handle_lucretia_server(struct process_message *message, struct process_handler_ctx *ctx)
 {
+    char *anomalymsg;
+    char msgid[UUID_STR_LEN];
+
+    int sendmnt;
+
+    struct lcp_req req;
+    struct lucretia *lucretia;
+    struct sockaddr_in *addr;
+
+    switch (message->code)
+    {
+    case 'F':
+        return PROCESS_HANDLER_CODE_FINISH;
+        break;
+    case 'A':
+        if (ctx->ccf->type == SLAVE)
+        {
+            get_uuid(msgid, UUID_STR_LEN);
+
+            anomalymsg = message->data;
+            lucretia = ctx->ccf->lucretia;
+
+            addr = &(lucretia->addr);
+            populate_lcp_request(&req, 1, lucretia->id_by_master, msgid, L_OP_INFORM_MASTER, NULL, anomalymsg);
+
+            sendmnt = send_lcp_request_to_addr(addr, &req);
+            if (sendmnt <= 0)
+            {
+                return PROCESS_HANDLER_CODE_ERROR_OCCURED;
+            }
+
+            //TODO: wait for an acknowledge response
+            
+            return PROCESS_HANDLER_CODE_OK;
+        }
+        else
+        {
+            return PROCESS_HANDLER_CODE_INCORRECT_TYPE_OP;
+        }
+
+    default:
+        return PROCESS_HANDLER_CODE_UNSUPPORTED_CODE;
+        break;
+    }
     return handle_common(message, ctx);
 }
 
@@ -150,7 +197,7 @@ static void cv_communication_bw_processes(char *anomaly_msg, struct process_hand
         ps = mapGet(MEKOY_PROCESS_LUCRETIA_SERVER, ctx->ccf->ps);
         if (ps != NULL)
         {
-            send_message_to_pfd(ps->pfd[0], 'A', anomaly_msg);
+            send_message_to_pfd(ps, 'A', anomaly_msg);
         }
     }
     else
@@ -158,13 +205,13 @@ static void cv_communication_bw_processes(char *anomaly_msg, struct process_hand
         ps = mapGet(MEKOY_PROCESS_AID_CAR_CONTROL, ctx->ccf->ps);
         if (ps != NULL)
         {
-            send_message_to_pfd(ps->pfd[0], 'S', NULL);
+            send_message_to_pfd(ps, 'S', NULL);
         }
 
         ps = mapGet(MEKOY_PROCESS_ROAD_INFORM_CONTROL, ctx->ccf->ps);
         if (ps != NULL)
         {
-            send_message_to_pfd(ps->pfd[0], 'I', anomaly_msg);
+            send_message_to_pfd(ps, 'I', anomaly_msg);
         }
     }
 }

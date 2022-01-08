@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-O2 -Wall -g
-OBJECTS=../lib/objects/mekoy.o ../lib/objects/lucretia.o ../lib/objects/dispatch.o ../lib/objects/process_handler.o ../lib/objects/process_listener.o ../lib/objects/process_message.o ../lib/objects/lcp.o ../lib/objects/util.o ../lib/objects/map.o
+OBJECTS=../lib/objects/mekoy.o ../lib/objects/lucretia.o ../lib/objects/dispatch.o ../lib/objects/process_handler.o ../lib/objects/process_listener.o ../lib/objects/process_message.o ../lib/objects/lcp.o ../lib/objects/util.o ../lib/objects/map.o ../lib/objects/lcp_handler.o
 
 .PHONY: clean
 
@@ -9,7 +9,7 @@ mekoy.o: include/mekoy.h mekoy.c
 	mkdir -p ../lib/objects &> /dev/null
 	mv mekoy.o ../lib/objects/
 
-lucretia.o: dispatch.o lcp.o util.o include/lucretia.h lucretia.c
+lucretia.o: include/lucretia.h lucretia.c
 	$(CC) $(CFLAGS) -c lucretia.c
 	mkdir -p ../lib/objects &> /dev/null
 	mv lucretia.o ../lib/objects/
@@ -38,6 +38,11 @@ lcp.o: lcp.c include/lcp.h
 	$(CC) $(CFLAGS) -c lcp.c
 	mkdir -p ../lib/objects &> /dev/null
 	mv lcp.o ../lib/objects/
+
+lcp_handler.o: lcp_handler.c include/lcp_handler.h
+	$(CC) $(CFLAGS) -c lcp_handler.c
+	mkdir -p ../lib/objects &> /dev/null
+	mv lcp_handler.o ../lib/objects/
 
 util.o: util.c include/util.h
 	$(CC) $(CFLAGS) -c util.c

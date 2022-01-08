@@ -19,6 +19,9 @@ typedef int (*process_handler_f)(struct process_message *message, struct process
 #define PROCESS_HANDLER_CODE_OK 0
 #define PROCESS_HANDLER_CODE_FINISH 1
 #define PROCESS_HANDLER_CODE_UNSUPPORTED_CODE 2
+#define PROCESS_HANDLER_CODE_INCORRECT_TYPE_OP 3
+#define PROCESS_HANDLER_CODE_ERROR_OCCURED 4
+
 
 struct process_handler_ctx
 {

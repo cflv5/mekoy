@@ -24,10 +24,6 @@ static enum conf_type set_conf_type(enum conf_type type);
 static u_int16_t get_port(char *portstr);
 static int get_max_slave_amount(char *max_slavestr);
 static struct l_node_list **set_slave_list(int max_amount);
-static void
-create_req(struct lcp_req *req, u_char ver, const char *id,
-           const char *msgid, u_int16_t opcode, const char *header, const char *body);
-static int send_req(int sockfd, struct lcp_req *req);
 static int extract_port(const char *message);
 static int check_if_slave_array_avaliable(struct l_node_list *slaves);
 
@@ -150,8 +146,8 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     get_uuid(msgid, UUID_STR_LEN);
 
     // starting handshake
-    create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, hello);
-    nsend = send_req(sockfd, &req);
+    populate_lcp_request(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, hello);
+    nsend = send_lcp_request(sockfd, &req);
     if (nsend < 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -181,8 +177,8 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
 
     // master allowed, sending port
     buff_len = snprintf(buffer, BUFF_LEN, "PORT=%hu", server->addr.sin_port);
-    create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, buffer);
-    nsend = send_req(sockfd, &req);
+    populate_lcp_request(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, buffer);
+    nsend = send_lcp_request(sockfd, &req);
     if (nsend < 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -218,8 +214,8 @@ int lcp_handshake(struct lucretia *server, const char *address, in_port_t port)
     strncpy(server->id_by_master, resp->body, UUID_STR_LEN - 1);
 
     // returning id to master to ack.
-    create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, server->id_by_master);
-    nsend = send_req(sockfd, &req);
+    populate_lcp_request(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, server->id_by_master);
+    nsend = send_lcp_request(sockfd, &req);
     if (nsend < 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -285,8 +281,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     struct l_node *slave = (struct l_node *)malloc(sizeof(struct l_node));
     if (slave == NULL)
     {
-        create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
-        send_req(sockfd, &req);
+        populate_lcp_request(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
+        send_lcp_request(sockfd, &req);
         shutdown(sockfd, SHUT_RDWR);
         return LUCRETIA_ERROR_MEM_ALLOC;
     }
@@ -297,8 +293,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     // checking slave array status
     if (check_if_slave_array_avaliable(server->slaves))
     {
-        create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
-        nsend = send_req(sockfd, &req);
+        populate_lcp_request(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
+        nsend = send_lcp_request(sockfd, &req);
         if (nsend < 0)
         {
             shutdown(sockfd, SHUT_RDWR);
@@ -308,8 +304,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_SETTING_SLAVE;
     }
 
-    create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, OK);
-    nsend = send_req(sockfd, &req);
+    populate_lcp_request(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, OK);
+    nsend = send_lcp_request(sockfd, &req);
     if (nsend < 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -348,8 +344,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
     memset((void *)slave->id, 0, UUID_STR_LEN);
     strncpy(slave->id, sid, UUID_STR_LEN);
 
-    create_req(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, sid);
-    nsend = send_req(sockfd, &req);
+    populate_lcp_request(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, sid);
+    nsend = send_lcp_request(sockfd, &req);
     if (nsend < 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -381,8 +377,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
 
     if (insert_l_node(server->slaves, slave))
     {
-        create_req(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
-        nsend = send_req(sockfd, &req);
+        populate_lcp_request(&req, 1, NULL, msgid, L_OP_HANDSHAKE, NULL, FAILED);
+        nsend = send_lcp_request(sockfd, &req);
         if (nsend < 0)
         {
             shutdown(sockfd, SHUT_RDWR);
@@ -392,8 +388,8 @@ int handle_lcp_handshake(struct lucretia *server, int sockfd, struct sockaddr_in
         return LUCRETIA_ERROR_SETTING_SLAVE;
     }
 
-    create_req(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, OK);
-    nsend = send_req(sockfd, &req);
+    populate_lcp_request(&req, 1, sid, msgid, L_OP_HANDSHAKE, NULL, OK);
+    nsend = send_lcp_request(sockfd, &req);
     if (nsend < 0)
     {
         shutdown(sockfd, SHUT_RDWR);
@@ -504,38 +500,6 @@ static int extract_port(const char *message)
     buff[++i] = 0;
 
     return atoi(buff);
-}
-
-static void
-create_req(struct lcp_req *req, u_char ver, const char *id,
-           const char *msgid, u_int16_t opcode, const char *header, const char *body)
-{
-    req->ver = ver;
-    req->id = id;
-    req->msgid = msgid;
-    req->opcode = opcode;
-    req->header = header;
-    req->body = body;
-}
-
-static int send_req(int sockfd, struct lcp_req *req)
-{
-    char message[BUFF_LEN];
-    int nsend;
-
-    int msglen = serialize_lcp_req(req, message, BUFF_LEN);
-    if (msglen <= 0)
-    {
-        return LUCRETIA_ERROR_REQUEST_SERIALIZATION;
-    }
-
-    nsend = send(sockfd, (void *)message, msglen, 0);
-    if (nsend < 0)
-    {
-        return LUCRETIA_ERROR_SEND_OPERATION;
-    }
-
-    return nsend;
 }
 
 static enum conf_type set_conf_type(enum conf_type type)

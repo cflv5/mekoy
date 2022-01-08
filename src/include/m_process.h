@@ -24,6 +24,7 @@ struct m_process
 {
     pid_t pid;
     int pfd[2];
+    int cfd[2];
     enum m_p_status status;
     char *path;
     char *name;

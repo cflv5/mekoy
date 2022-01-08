@@ -89,13 +89,12 @@ int send_process_message(struct process_message *message, struct m_process *ps)
         return PROCESS_MESSAGE_ERROR_NULL_POINTER;
     }
 
-    if (ps->status != STARTED)
-    {
-        return PROCESS_MESSAGE_ERROR_SEND_TO_NOT_STARTED;
-    }
-    
+    // if (ps->status != STARTED)
+    // {
+    //     return PROCESS_MESSAGE_ERROR_SEND_TO_NOT_STARTED;
+    // }
 
-    int pwrite = ps->pfd[1];
+    int pwrite = ps->pfd[M_PROCESS_WRITE_END];
     
     int size = serialize_process_message(message, buff, PROCESS_HANDLER_BUFF_SIZE);
 
@@ -104,7 +103,7 @@ int send_process_message(struct process_message *message, struct m_process *ps)
         return PROCESS_MESSAGE_ERROR_SERILIAZATION;
     }
     
-    fprintf(stderr, "[INFO][MEKOY][PMESSAGE] - Send message (%s) to: %s", buff, ps->name);
+    fprintf(stderr, "[INFO][MEKOY][PMESSAGE] - Send message (%s) to: %s\n", buff, ps->name);
     
     if (pthread_mutex_lock(&(ps->lock)) != 0)
     {

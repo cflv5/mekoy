@@ -3,6 +3,8 @@
 
 #include "lucretia.h"
 
+#include <uuid/uuid.h>
+
 #define UTIL_ERROR_INSUFFICIENT_BUFFER_LEN -1
 #define UTIL_ERROR_NULL_POINTER -2
 #define UTIL_ERROR_ARRAY_OVERFLOW -3

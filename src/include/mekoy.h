@@ -1,10 +1,13 @@
 #ifndef __MEKOY_H__
 #define __MEKOY_H__
 
+struct lucretia;
+
 #include "map.h"
 #include "lucretia.h"
 #include "process_listener.h"
 #include "m_process.h"
+#include "conf_type.h"
 
 #include <pthread.h>
 
@@ -21,6 +24,7 @@
 #define MEKOY_ERROR_FORK -5
 #define MEKOY_ERROR_PROCESS_CREATION -6
 #define MEKOY_ERROR_MUTEX_INIT -7
+#define MEKOY_ERROR_FETCH_PROCESS -8
 
 
 #define MEKOY_SIZE_PROCESS 4
@@ -29,10 +33,13 @@ struct mekoy
 {
     struct map* configurations;
     struct map* ps;
+    struct lucretia *lucretia;
 
     enum conf_type type;
 };
 
 struct mekoy *create_mekoy(struct map* configurations, int *rtrn_status);
+int m_run(struct mekoy *ccf);
+int m_listen(struct mekoy *ccf);
 
 #endif // !__MEKOY_H__

@@ -85,8 +85,6 @@ struct mekoy *create_mekoy(struct map *configurations, int *rtrn_status)
 int m_run(struct mekoy *ccf)
 {
     pid_t pid;
-    int ptcpfd[2];
-    int ctppfd[2];
 
     int mp_status;
     int listen_status;
@@ -110,18 +108,30 @@ int m_run(struct mekoy *ccf)
         return MEKOY_ERROR_MEM_ALLOCATION;
     }
 
-    pipe(ptcpfd);
-    pipe(ctppfd);
+    if (create_m_process(MEKOY_PROCESS_LUCRETIA_SERVER, ccf) != 0)
+    {
+        return MEKOY_ERROR_PROCESS_CREATION;
+    }
+
+    pr = (struct m_process *)mapGet(MEKOY_PROCESS_LUCRETIA_SERVER, ccf->ps);
+    if (pr == NULL)
+    {
+        fprintf(stderr, "[ERROR][MEKOY] Could not get process\n");
+        return MEKOY_ERROR_FETCH_PROCESS;
+    }
+
+    lucretia_server->ccf = ccf;
+
     pid = fork();
     if (pid == 0)
     {
         prctl(PR_SET_PDEATHSIG, SIGHUP);
         //TODO close unrelated pfds for lucretia server
-        
-        dup2(ptcpfd[0], STDIN_FILENO);
-        dup2(ctppfd[1], STDOUT_FILENO);
-        close(ptcpfd[1]);
-        close(ctppfd[0]);
+
+        dup2(pr->cfd[0], STDIN_FILENO);
+        dup2(pr->cfd[1], STDOUT_FILENO);
+        close(pr->pfd[1]);
+        close(pr->pfd[0]);
 
         mp_status = l_run(lucretia_server);
 
@@ -134,27 +144,16 @@ int m_run(struct mekoy *ccf)
         return MEKOY_ERROR_FORK;
     }
 
-    if (create_m_process(MEKOY_PROCESS_LUCRETIA_SERVER, ccf) != 0)
-    {
-        kill(pid, SIGKILL);
-        return MEKOY_ERROR_PROCESS_CREATION;
-    }
 
-    pr = (struct m_process *)mapGet(MEKOY_PROCESS_LUCRETIA_SERVER, ccf->ps);
-    if (pr == NULL)
-    {
-        fprintf(stderr, "[ERROR] Could not get process\n");
-    }
-
-    pr->pfd[0] = ctppfd[0];
-    pr->pfd[1] = ptcpfd[1];
     pr->pid = pid;
     pr->status = STARTED;
 
-    // TODO: make it able to scan indicies
+    ccf->lucretia = lucretia_server;
+
     if ((mp_status = start_m_process(MEKOY_PROCESS_CV, ccf)) != 0)
         return mp_status;
 
+    // TODO: make it able to scan indicies
     if (ccf->type == MASTER)
     {
         if ((mp_status = start_m_process(MEKOY_PROCESS_AID_CAR_CONTROL, ccf)) != 0)
@@ -206,6 +205,11 @@ static void free_mekoy(struct mekoy *ccf)
 static int create_m_process(char *name, struct mekoy *ccf)
 {
     struct m_process *pr = NULL;
+    int ptcpfd[2];
+    int ctppfd[2];
+
+    pipe(ptcpfd);
+    pipe(ctppfd);
 
     char *pr_path = (char *)mapGet(name, ccf->configurations);
     if (pr_path != NULL)
@@ -215,6 +219,11 @@ static int create_m_process(char *name, struct mekoy *ccf)
         {
             return MEKOY_ERROR_MEM_ALLOCATION;
         }
+
+        pr->pfd[0] = ctppfd[0];
+        pr->pfd[1] = ptcpfd[1];
+        pr->cfd[0] = ptcpfd[0];
+        pr->cfd[1] = ctppfd[1];
 
         pr->path = pr_path;
         pr->status = CREATED;
@@ -238,26 +247,23 @@ static int create_m_process(char *name, struct mekoy *ccf)
 static int start_m_process(const char *name, struct mekoy *ccf)
 {
     pid_t pid;
-    int ptcpfd[2];
-    int ctppfd[2];
     int rtn;
 
     struct m_process *pr = mapGet((char *)name, ccf->ps);
     if (pr != NULL)
     {
-        pipe(ptcpfd);
-        pipe(ctppfd);
-
         pid = fork();
         if (pid == 0)
         {
             prctl(PR_SET_PDEATHSIG, SIGHUP);
-            close_unrelated_fds(ccf->ps, pr);
+            //close_unrelated_fds(ccf->ps, pr);
 
-            dup2(ptcpfd[0], STDIN_FILENO);
-            dup2(ctppfd[1], STDOUT_FILENO);
-            close(ptcpfd[1]);
-            close(ctppfd[0]);
+            dup2(pr->cfd[0], STDIN_FILENO);
+            dup2(pr->cfd[1], STDOUT_FILENO);
+            close(pr->pfd[1]);
+            close(pr->pfd[0]);
+
+            pr->status = STARTED;
 
             rtn = execl(pr->path, pr->path, (const char *)NULL);
 
@@ -268,11 +274,10 @@ static int start_m_process(const char *name, struct mekoy *ccf)
         {
             return MEKOY_ERROR_FORK;
         }
-
-        pr->pfd[0] = ctppfd[0];
-        pr->pfd[1] = ptcpfd[1];
         pr->pid = pid;
         pr->status = STARTED;
+        close(pr->cfd[1]);
+        close(pr->cfd[0]);
     }
 
     return MEKOY_RETURN_STATUS_OK;

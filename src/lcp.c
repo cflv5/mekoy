@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 
 static int cpy(const char *src, char *dest, int len);
 static char *d_cpy(const char *src, int *len);
@@ -113,6 +114,85 @@ int to_str_lcp_req(struct lcp_req *req, char *buff, int len)
     return strlen(buff);
 }
 
+int send_lcp_request(int sockfd, struct lcp_req *req)
+{
+    char message[LCP_BUFF_SIZE];
+    int nsend;
+
+    int msglen = serialize_lcp_req(req, message, LCP_BUFF_SIZE);
+    if (msglen <= 0)
+    {
+        return LCP_ERROR_REQUEST_SERIALIZATION;
+    }
+
+    nsend = send(sockfd, (void *)message, msglen, 0);
+    if (nsend < 0)
+    {
+        return LCP_ERROR_SEND_OPERATION;
+    }
+
+    return nsend;
+}
+
+int send_lcp_request_to_addr(struct sockaddr_in *addr, struct lcp_req *req)
+{
+    int sockfd;
+    struct sockaddr_in sockaddr;
+    int rtn;
+
+    bzero((char *)&sockaddr, sizeof(sockaddr));
+    memcpy(&sockaddr, addr, sizeof(struct sockaddr_in));
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (connect(sockfd, (const struct sockaddr *)&sockaddr, sizeof(struct sockaddr)) < 0)
+    {
+        close(sockfd);
+        return LCP_ERROR_SEND_OPERATION;
+    }
+
+    rtn = send_lcp_request(sockfd, req);
+    close(sockfd);
+    return rtn;
+}
+
+int populate_lcp_request(struct lcp_req *req, u_char ver, const char *id,
+                         const char *msgid, u_int16_t opcode, const char *header,
+                         const char *body)
+{
+    if (req == NULL)
+    {
+        return LCP_ERROR_NULL_POINTER;
+    }
+
+    req->ver = ver;
+    req->id = id;
+    req->msgid = msgid;
+    req->opcode = opcode;
+    req->header = header;
+    req->body = body;
+
+    return 0;
+}
+
+struct lcp_req *create_lcp_request(u_char ver, const char *id, const char *msgid,
+                                   u_int16_t opcode, const char *header,
+                                   const char *body)
+{
+    struct lcp_req *req = (struct lcp_req *)malloc(sizeof(struct lcp_req));
+    if (req == NULL)
+    {
+        return NULL;
+    }
+
+    if (populate_lcp_request(req, ver, id, msgid, opcode, header, body) != 0)
+    {
+        return NULL;
+    }
+
+    return req;
+}
+
 static int cpy(const char *src, char *dest, int len)
 {
     if (src == NULL || src[0] == 0)
@@ -141,7 +221,7 @@ static char *d_cpy(const char *src, int *len)
     if (dest != NULL)
     {
         memset((void *)dest, 0, *len + 1);
-        strncpy(dest, src, *len); 
+        strncpy(dest, src, *len);
         // TODO: use memset instead
     }
 

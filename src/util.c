@@ -2,7 +2,6 @@
 #include "include/lucretia.h"
 
 #include <string.h>
-#include <uuid/uuid.h>
 
 enum conf_type get_conf_type(char *property)
 {

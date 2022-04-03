@@ -1,6 +1,8 @@
 #ifndef __M_PROCESS__H__
 #define __M_PROCESS__H__
 
+struct process_listener;
+
 #include "process_listener.h"
 
 #include <pthread.h>
@@ -11,6 +13,7 @@
 #define MEKOY_PROCESS_LIGHTING_CONTROL "LIGHTING_CONTROL"
 #define MEKOY_PROCESS_AID_CAR_CONTROL "AID_CAR_CONTROL"
 #define MEKOY_PROCESS_ROAD_INFORM_CONTROL "ROAD_INFORM_CONTROL"
+#define MEKOY_PROCESS_REMOTE_CONTROL "PUPPETEER"
 
 #define M_PROCESS_READ_END 0
 #define M_PROCESS_WRITE_END 1
@@ -28,6 +31,7 @@ struct m_process
     enum m_p_status status;
     char *path;
     char *name;
+    int is_system_pr;
     struct process_listener *ps_listener;
     pthread_mutex_t lock;
 };

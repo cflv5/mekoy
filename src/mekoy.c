@@ -8,6 +8,7 @@
 #include "include/lucretia.h"
 #include "include/process_message.h"
 #include "include/process_handler.h"
+#include "include/puppeteer.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -17,9 +18,10 @@
 #include <sys/prctl.h>
 
 static void free_mekoy(struct mekoy *ccf);
-static int create_m_process(char *name, struct mekoy *ccf);
+static int create_m_process(char *name, int is_system_pr, struct mekoy *ccf);
 static int start_m_process(const char *name, struct mekoy *ccf);
 static void close_unrelated_fds(struct map *pss, struct m_process *ps);
+static int run_remote_controller_server(struct mekoy *ccf);
 
 struct mekoy *create_mekoy(struct map *configurations, int *rtrn_status)
 {
@@ -45,7 +47,7 @@ struct mekoy *create_mekoy(struct map *configurations, int *rtrn_status)
 
     // TODO: process definitions should be from configuration file
     // CV
-    if ((create_p_status = create_m_process(MEKOY_PROCESS_CV, ccf)) != 0)
+    if ((create_p_status = create_m_process(MEKOY_PROCESS_CV, 0, ccf)) != 0)
     {
         *rtrn_status = create_p_status;
         free_mekoy(ccf);
@@ -55,7 +57,7 @@ struct mekoy *create_mekoy(struct map *configurations, int *rtrn_status)
     if (ccf->type == MASTER)
     {
         // AID CAR
-        if ((create_p_status = create_m_process(MEKOY_PROCESS_AID_CAR_CONTROL, ccf)) != 0)
+        if ((create_p_status = create_m_process(MEKOY_PROCESS_AID_CAR_CONTROL, 0, ccf)) != 0)
         {
             *rtrn_status = create_p_status;
             free_mekoy(ccf);
@@ -63,7 +65,7 @@ struct mekoy *create_mekoy(struct map *configurations, int *rtrn_status)
         }
 
         // ROAD INFORM CONTROL
-        if ((create_p_status = create_m_process(MEKOY_PROCESS_ROAD_INFORM_CONTROL, ccf)) != 0)
+        if ((create_p_status = create_m_process(MEKOY_PROCESS_ROAD_INFORM_CONTROL, 0, ccf)) != 0)
         {
             *rtrn_status = create_p_status;
             free_mekoy(ccf);
@@ -71,7 +73,15 @@ struct mekoy *create_mekoy(struct map *configurations, int *rtrn_status)
         }
 
         // LIGHTING CONTROL
-        if ((create_p_status = create_m_process(MEKOY_PROCESS_LIGHTING_CONTROL, ccf)) != 0)
+        if ((create_p_status = create_m_process(MEKOY_PROCESS_LIGHTING_CONTROL, 0, ccf)) != 0)
+        {
+            *rtrn_status = create_p_status;
+            free_mekoy(ccf);
+            return NULL;
+        }
+
+        // REMOTE CONTROL
+        if ((create_p_status = create_m_process(MEKOY_PROCESS_REMOTE_CONTROL, 1, ccf)) != 0)
         {
             *rtrn_status = create_p_status;
             free_mekoy(ccf);
@@ -108,7 +118,7 @@ int m_run(struct mekoy *ccf)
         return MEKOY_ERROR_MEM_ALLOCATION;
     }
 
-    if (create_m_process(MEKOY_PROCESS_LUCRETIA_SERVER, ccf) != 0)
+    if (create_m_process(MEKOY_PROCESS_LUCRETIA_SERVER, 1, ccf) != 0)
     {
         return MEKOY_ERROR_PROCESS_CREATION;
     }
@@ -126,7 +136,7 @@ int m_run(struct mekoy *ccf)
     if (pid == 0)
     {
         prctl(PR_SET_PDEATHSIG, SIGHUP);
-        //TODO close unrelated pfds for lucretia server
+        // TODO close unrelated pfds for lucretia server
 
         dup2(pr->cfd[0], STDIN_FILENO);
         dup2(pr->cfd[1], STDOUT_FILENO);
@@ -134,6 +144,7 @@ int m_run(struct mekoy *ccf)
         close(pr->pfd[0]);
 
         mp_status = l_run(lucretia_server);
+        fprintf(stderr, "[INFO][MEKOY][LUCRETIA] Exitted with status: %d\n", mp_status);
 
         fprintf(stdout, "F\n");
         fflush(stdout);
@@ -163,6 +174,9 @@ int m_run(struct mekoy *ccf)
         if ((mp_status = start_m_process(MEKOY_PROCESS_ROAD_INFORM_CONTROL, ccf)) != 0)
             return mp_status;
     }
+
+    run_remote_controller_server(ccf);
+    
     listen_status = m_listen(ccf);
 
     return listen_status != 0 ? listen_status : MEKOY_RETURN_STATUS_OK;
@@ -180,6 +194,7 @@ int m_listen(struct mekoy *ccf)
     while (mapIteratorNext(iterator) == 0)
     {
         ps = (struct m_process *)getIteratorVal(iterator);
+        fprintf(stderr, "[INFO][MEKOY][RUN] Creating listener for: %s\n", ps->name);
         listener = create_process_listener(ps);
 
         pid = fork();
@@ -202,7 +217,7 @@ static void free_mekoy(struct mekoy *ccf)
     free(ccf);
 }
 
-static int create_m_process(char *name, struct mekoy *ccf)
+static int create_m_process(char *name, int is_system_pr,struct mekoy *ccf)
 {
     struct m_process *pr = NULL;
     int ptcpfd[2];
@@ -228,6 +243,7 @@ static int create_m_process(char *name, struct mekoy *ccf)
         pr->path = pr_path;
         pr->status = CREATED;
         pr->name = name;
+        pr->is_system_pr = is_system_pr;
 
         if (pthread_mutex_init(&(pr->lock), NULL) != 0)
         {
@@ -256,7 +272,7 @@ static int start_m_process(const char *name, struct mekoy *ccf)
         if (pid == 0)
         {
             prctl(PR_SET_PDEATHSIG, SIGHUP);
-            //close_unrelated_fds(ccf->ps, pr);
+            // close_unrelated_fds(ccf->ps, pr);
 
             dup2(pr->cfd[0], STDIN_FILENO);
             dup2(pr->cfd[1], STDOUT_FILENO);
@@ -265,7 +281,8 @@ static int start_m_process(const char *name, struct mekoy *ccf)
 
             pr->status = STARTED;
 
-            rtn = execl(pr->path, pr->path, (const char *)NULL);
+            rtn = execlp("python3", "python3", pr->path, (const char *)NULL);
+            fprintf(stderr, "[INFO] %s stopped with code: %d\n", pr->path, rtn);
 
             // TODO: log errno
             exit(rtn);
@@ -300,4 +317,64 @@ static void close_unrelated_fds(struct map *pss, struct m_process *ps)
             }
         }
     }
+}
+
+static int run_remote_controller_server(struct mekoy *ccf)
+{
+    struct map *remote_conf = (struct map *)mapGet("MEKOY.PUPPETEER", ccf->configurations);
+    struct puppeteer *puppeteer;
+    struct m_process *pr;
+
+    int mp_status;
+    int pid;
+    int st;
+
+    if (ccf == NULL)
+    {
+        return MEKOY_ERROR_REMOTE_CONTROL_NULL_POINTER;
+    }
+
+    if (remote_conf == NULL)
+    {
+        return MEKOY_ERROR_REMOTE_CONTROL_CONFIGURATION_NOT_DEFINED;
+    }
+
+    puppeteer = create_puppeteer(remote_conf, &st);
+    if (st != 0)
+    {
+        return MEKOY_ERROR_REMOTE_CONTROL_CREATION;
+    }
+
+    pr = (struct m_process *)mapGet(MEKOY_PROCESS_REMOTE_CONTROL, ccf->ps);
+    if (pr == NULL)
+    {
+        free(puppeteer);
+        return MEKOY_ERROR_REMOTE_CONTROL_PROCESS_NOT_CREATED;
+    }
+
+    puppeteer->ccf = ccf;
+
+    pid = fork();
+    if (pid == 0)
+    {
+        prctl(PR_SET_PDEATHSIG, SIGHUP);
+
+        dup2(pr->cfd[0], STDIN_FILENO);
+        dup2(pr->cfd[1], STDOUT_FILENO);
+        close(pr->pfd[1]);
+        close(pr->pfd[0]);
+
+        mp_status = run_puppeteer(puppeteer);
+        fprintf(stderr, "[INFO][MEKOY][PUPPETEER] Exitted with status: %d\n", mp_status);
+
+        fprintf(stdout, "F\n");
+        fflush(stdout);
+        exit(mp_status);
+    }
+
+    pr->pid = pid;
+    pr->status = STARTED;
+    ccf->puppeteer = puppeteer;
+
+    return 0;
 }

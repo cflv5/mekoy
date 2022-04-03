@@ -29,12 +29,10 @@ int serialize_process_message(struct process_message *message, char *buff, int l
     }
 
     strncpy(&buff[1], message->data, len - 2);
-
     ind = strlen(buff);
-
     buff[ind] = '\n';
 
-    return ind;
+    return ind + 1;
 }
 
 struct process_message *deserialize_process_message(char *message, int len, int *status)
@@ -103,7 +101,53 @@ int send_process_message(struct process_message *message, struct m_process *ps)
         return PROCESS_MESSAGE_ERROR_SERILIAZATION;
     }
     
+    if (pthread_mutex_lock(&(ps->lock)) != 0)
+    {
+        return PROCESS_MESSAGE_ERROR_MUTEX_LOCK;
+    }
+    
+    ssize_t wsize = write(pwrite, buff, size);
+    if (wsize < 0)
+    {
+        return PROCESS_MESSAGE_ERROR_WRITE_TO_PIPE;
+    }
+    
+    if (pthread_mutex_unlock(&(ps->lock)) != 0)
+    {
+        ps->status = STOPED;
+        //TODO: add signal to child to exit
+        return PROCESS_MESSAGE_ERROR_MUTEX_UNLOCK;
+    }
+
     fprintf(stderr, "[INFO][MEKOY][PMESSAGE] - Send message (%s) to: %s\n", buff, ps->name);
+
+    return PROCESS_MESSAGE_OK;
+}
+
+
+// TODO: refactor duplicate functions
+int send_process_message_as_child(struct process_message *message, struct m_process *ps)
+{
+    char buff[PROCESS_HANDLER_BUFF_SIZE];
+
+    if(ps == NULL)
+    {
+        return PROCESS_MESSAGE_ERROR_NULL_POINTER;
+    }
+
+    // if (ps->status != STARTED)
+    // {
+    //     return PROCESS_MESSAGE_ERROR_SEND_TO_NOT_STARTED;
+    // }
+
+    int pwrite = ps->cfd[M_PROCESS_WRITE_END];
+    
+    int size = serialize_process_message(message, buff, PROCESS_HANDLER_BUFF_SIZE);
+
+    if (size < 0)
+    {
+        return PROCESS_MESSAGE_ERROR_SERILIAZATION;
+    }
     
     if (pthread_mutex_lock(&(ps->lock)) != 0)
     {
@@ -122,6 +166,9 @@ int send_process_message(struct process_message *message, struct m_process *ps)
         //TODO: add signal to child to exit
         return PROCESS_MESSAGE_ERROR_MUTEX_UNLOCK;
     }
+
+    fprintf(stderr, "[INFO][MEKOY][PMESSAGE] - Send message (%s) to: %s\n", buff, ps->name);
+
     return PROCESS_MESSAGE_OK;
 }
 

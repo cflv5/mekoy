@@ -26,6 +26,7 @@ int serialize_process_message(struct process_message *message, char *buff, int l
 struct process_message *deserialize_process_message(char *message, int len, int *status);
 
 int send_process_message(struct process_message *message, struct m_process *ps);
+int send_process_message_as_child(struct process_message *message, struct m_process *ps);
 
 int free_process_message(struct process_message **msg);
 

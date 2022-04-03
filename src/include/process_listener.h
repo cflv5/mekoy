@@ -1,12 +1,12 @@
 #ifndef __PROCESS_LISTENER_H__
 #define __PROCESS_LISTENER_H__
 
+struct m_process;
+
 #include "process_handler.h"
 #include "m_process.h"
 
 #include <unistd.h>
-
-struct m_process;
 
 struct process_listener
 {

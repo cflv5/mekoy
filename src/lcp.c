@@ -12,6 +12,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
 
 static int cpy(const char *src, char *dest, int len);
 static char *d_cpy(const char *src, int *len);
@@ -139,19 +140,35 @@ int send_lcp_request_to_addr(struct sockaddr_in *addr, struct lcp_req *req)
     int sockfd;
     struct sockaddr_in sockaddr;
     int rtn;
+    char *ip_addr;
 
     bzero((char *)&sockaddr, sizeof(sockaddr));
     memcpy(&sockaddr, addr, sizeof(struct sockaddr_in));
 
+    ip_addr = inet_ntoa(sockaddr.sin_addr);
+    
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd <= 0)
+    {
+        fprintf(stderr, "[ERROR][LCP][SEND] Could not create socket for '%s:%hi'\n", ip_addr, ntohs(sockaddr.sin_port));
+        return LCP_ERROR_SEND_OPERATION;
+    }
 
+
+    fprintf(stderr, "[INFO][LCP][SEND] Trying to connect to '%s:%hi'\n", ip_addr, ntohs(sockaddr.sin_port));
     if (connect(sockfd, (const struct sockaddr *)&sockaddr, sizeof(struct sockaddr)) < 0)
     {
+        fprintf(stderr, "[ERROR][LCP][SEND] Could not connect to '%s:%hi'\n", ip_addr, ntohs(sockaddr.sin_port));
         close(sockfd);
         return LCP_ERROR_SEND_OPERATION;
     }
 
     rtn = send_lcp_request(sockfd, req);
+    if (rtn <= 0)
+    {
+        fprintf(stderr, "[ERROR][LCP][SEND] Could not send message to '%s:%hi'\n", ip_addr, ntohs(sockaddr.sin_port));
+    }
+
     close(sockfd);
     return rtn;
 }

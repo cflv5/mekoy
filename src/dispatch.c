@@ -38,6 +38,10 @@ int dispatch(struct lucretia *server, struct lcp_req *req, int sockfd, struct so
         return_code = handle_lcp_informed(server, sockfd, req_addr, req);
 
         return return_code;
+    case L_OP_INFORM_CLEAR_MASTER:
+        return_code = handle_lcp_informed_clear(server, sockfd, req_addr, req);
+
+        return return_code;
     default:
         try = 0;
         while ((return_code = inform_unsupported_operation(server, req, sockfd) < 0) && try < MAX_TRY)
